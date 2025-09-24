@@ -2,15 +2,21 @@
 
 export default function Settings() {
   return (
-    <div className="h-[90vh] flex-center p-4">
-      <div className="text-center flex-center gap-2">
-        <div className="text-6xl mb-6">⚙️</div>
-        <hgroup className="text-left">
-          <h2 className="text-3xl font-bold text-gray-900">Coming Soon</h2>
-          <p className="text-gray-600 mb-6">
-            Customize your learning experience
-          </p>
-        </hgroup>
+    <div className="min-h-screen bg-[#f7f7f7]">
+      <div className="max-w-4xl mx-auto py-20 px-6">
+        <div className="text-center">
+          <div className="mb-8">
+            <div className="w-16 h-16 mx-auto mb-6 bg-white rounded-full flex items-center justify-center border border-gray-200">
+              <span className="text-2xl">⚙️</span>
+            </div>
+            <h1 className="text-2xl font-medium text-gray-800 mb-2">
+              Settings - Coming soon
+            </h1>
+            <p className="text-gray-600 text-sm">
+              Customize your learning experience and preferences
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

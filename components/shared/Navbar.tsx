@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const Navigation = () => {
+const Navbar = () => {
   const pathname = usePathname();
 
   const navItems = [
@@ -30,29 +31,36 @@ const Navigation = () => {
   ];
 
   return (
-    <nav className="bg-white shadow-lg shadow-zinc-50 border-b border-gray-200">
+    <nav className="bg-[#f7f7f7] shadow-lg shadow-zinc-50 border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
-            <div className="text-2xl">📚</div>
+          <Link href="/" className="flex items-end gap-1">
+            {/* <div className="text-2xl">📚</div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">
                 Cambridge Audio
               </h1>
               <p className="text-xs text-gray-500">Learning Assistant</p>
-            </div>
+            </div> */}
+            <Image
+              src="/logo-with-bg.png"
+              alt="Talktide"
+              width={120}
+              height={50}
+            />
+            <span className="text-xs opacity-60">(Demo)</span>
           </Link>
 
           {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-1">
+          <div className="hidden md:flex items-center gap-6">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`py-1.5 text-sm font-medium transition-all duration-200 ${
                   pathname === item.href
-                    ? "bg-gray-50 shadow-sm"
+                    ? "border-b"
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                 }`}
               >
@@ -107,4 +115,4 @@ const Navigation = () => {
   );
 };
 
-export default Navigation;
+export default Navbar;

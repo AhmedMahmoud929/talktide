@@ -8,12 +8,25 @@ import {
   setSelectedBook,
   setSelectedFile,
 } from "@/redux/features/audio/audioSlice";
+import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface AudioBook {
   id: string;
   title: string;
   description: string;
-  color: string;
+  level: "elementary" | "intermediate" | "upper-intermediate" | "advanced";
+  category:
+    | "vocabulary"
+    | "grammar"
+    | "idioms"
+    | "collocations"
+    | "speaking"
+    | "pronunciation"
+    | "listening";
+  cover: string;
+  isComingSoon?: boolean;
   files: string[];
 }
 
@@ -26,11 +39,45 @@ export default function Home() {
 
   // Audio books configuration
   const audioBooks: AudioBook[] = [
+    // Vocabulary Books
+    {
+      id: "cambridge-vocab-elementary",
+      title: "Cambridge Vocabulary Elementary in Use",
+      description: "Elementary vocabulary building exercises",
+      level: "elementary",
+      category: "vocabulary",
+      cover: "cambridge-elementary-vocab-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+    {
+      id: "cambridge-vocab-intermediate",
+      title: "Cambridge Vocabulary Intermediate in Use",
+      description:
+        "Pre-intermediate and intermediate vocabulary building exercises",
+      level: "intermediate",
+      category: "vocabulary",
+      cover: "cambridge-intermediate-vocab-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+    {
+      id: "cambridge-vocab-upper-intermediate",
+      title: "Cambridge Vocabulary Upper Intermediate in Use",
+      description: "Upper intermediate vocabulary building exercises",
+      level: "upper-intermediate",
+      category: "vocabulary",
+      cover: "cambridge-upper-intermediate-vocab-in-use.webp",
+      files: [],
+      isComingSoon: true,
+    },
     {
       id: "cambridge-vocab-advanced",
       title: "Cambridge Vocabulary Advanced in Use",
       description: "Advanced vocabulary building exercises",
-      color: "blue",
+      level: "advanced",
+      category: "vocabulary",
+      cover: "cambridge-advanced-vocab-in-use.jpg",
       files: [
         "U_001.A.mp3",
         "U_001.B.mp3",
@@ -39,19 +86,161 @@ export default function Home() {
         "U_002.B.mp3",
       ],
     },
+
+    // Grammar Books
+    {
+      id: "cambridge-grammar-elementary",
+      title: "Cambridge Grammar Elementary in Use",
+      description: "Essential grammar for elementary learners",
+      level: "elementary",
+      category: "grammar",
+      cover: "cambridge-elementary-grammar-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
     {
       id: "cambridge-grammar-intermediate",
       title: "Cambridge Grammar Intermediate in Use",
-      description: "Intermediate grammar exercises with practical examples",
-      color: "green",
-      files: ["G_001.A.mp3", "G_001.B.mp3", "G_002.A.mp3"],
+      description:
+        "Grammar practice for pre-intermediate and intermediate students",
+      level: "intermediate",
+      category: "grammar",
+      cover: "cambridge-intermediate-grammar-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+    {
+      id: "cambridge-grammar-advanced",
+      title: "Cambridge Grammar Advanced in Use",
+      description: "Advanced grammar structures and usage",
+      level: "advanced",
+      category: "grammar",
+      cover: "cambridge-advanced-grammar-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+
+    // Idioms Books
+    {
+      id: "cambridge-idioms-intermediate",
+      title: "Cambridge Idioms Intermediate in Use",
+      description: "Common idioms and expressions for intermediate learners",
+      level: "intermediate",
+      category: "idioms",
+      cover: "cambridge-intermediate-idioms-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+    {
+      id: "cambridge-idioms-advanced",
+      title: "Cambridge Idioms Advanced in Use",
+      description: "Advanced idioms and idiomatic expressions",
+      level: "advanced",
+      category: "idioms",
+      cover: "cambridge-advanced-idioms-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+
+    // Collocations Books
+    {
+      id: "cambridge-collocations-intermediate",
+      title: "Cambridge Collocations Intermediate in Use",
+      description: "Word combinations for intermediate students",
+      level: "intermediate",
+      category: "collocations",
+      cover: "cambridge-intermediate-collocations-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+    {
+      id: "cambridge-collocations-advanced",
+      title: "Cambridge Collocations Advanced in Use",
+      description: "Advanced word partnerships and collocations",
+      level: "advanced",
+      category: "collocations",
+      cover: "cambridge-advanced-collocations-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+
+    // Pronunciation Books
+    {
+      id: "cambridge-pronunciation-elementary",
+      title: "Cambridge Pronunciation Elementary in Use",
+      description: "Basic pronunciation skills and sounds",
+      level: "elementary",
+      category: "pronunciation",
+      cover: "cambridge-elementary-pronunciation-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+    {
+      id: "cambridge-pronunciation-intermediate",
+      title: "Cambridge Pronunciation Intermediate in Use",
+      description:
+        "Pre-intermediate and intermediate pronunciation and intonation",
+      level: "intermediate",
+      category: "pronunciation",
+      cover: "cambridge-intermediate-pronunciation-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+
+    // Listening Books
+    {
+      id: "cambridge-listening-elementary",
+      title: "Cambridge Listening Elementary in Use",
+      description: "Essential listening skills for beginners",
+      level: "elementary",
+      category: "listening",
+      cover: "cambridge-elementary-listening-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+    {
+      id: "cambridge-listening-intermediate",
+      title: "Cambridge Listening Intermediate in Use",
+      description:
+        "Pre-intermediate and intermediate listening comprehension practice",
+      level: "intermediate",
+      category: "listening",
+      cover: "cambridge-intermediate-listening-in-use.jpg",
+      files: [],
+      isComingSoon: true,
     },
     {
       id: "cambridge-listening-advanced",
-      title: "Cambridge Listening Advanced",
-      description: "Advanced listening comprehension with native speakers",
-      color: "purple",
-      files: ["L_001.A.mp3", "L_001.B.mp3"],
+      title: "Cambridge Listening Advanced in Use",
+      description: "Advanced listening skills and strategies",
+      level: "advanced",
+      category: "listening",
+      cover: "cambridge-advanced-listening-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+
+    // Speaking Books
+    {
+      id: "cambridge-speaking-intermediate",
+      title: "Cambridge Speaking Intermediate in Use",
+      description:
+        "Speaking practice for pre-intermediate and intermediate learners",
+      level: "intermediate",
+      category: "speaking",
+      cover: "cambridge-intermediate-speaking-in-use.jpg",
+      files: [],
+      isComingSoon: true,
+    },
+    {
+      id: "cambridge-speaking-advanced",
+      title: "Cambridge Speaking Advanced in Use",
+      description: "Advanced speaking techniques and confidence",
+      level: "advanced",
+      category: "speaking",
+      cover: "cambridge-advanced-speaking-in-use.jpg",
+      files: [],
+      isComingSoon: true,
     },
   ];
 
@@ -61,15 +250,38 @@ export default function Home() {
   // Extract units from files
   const getAvailableUnits = () => {
     const files = getCurrentBook()?.files || [];
-    const units = [...new Set(files.map(file => file.split('.')[0]))];
+    const units = [...new Set(files.map((file) => file.split(".")[0]))];
     return units.sort();
+  };
+
+  const getCategoryColor = (category: AudioBook["category"]) => {
+    switch (category) {
+      case "vocabulary":
+        return "#6B7280"; // neutral gray
+      case "grammar":
+        return "#6B7280";
+      case "idioms":
+        return "#6B7280";
+      case "collocations":
+        return "#6B7280";
+      case "speaking":
+        return "#6B7280";
+      case "pronunciation":
+        return "#6B7280";
+      case "listening":
+        return "#6B7280";
+      default:
+        return "#6B7280";
+    }
   };
 
   // Extract lessons for selected unit
   const getAvailableLessons = () => {
     const files = getCurrentBook()?.files || [];
-    const unitFiles = files.filter(file => file.startsWith(selectedUnit + '.'));
-    return unitFiles.map(file => file.split('.')[1]).sort();
+    const unitFiles = files.filter((file) =>
+      file.startsWith(selectedUnit + ".")
+    );
+    return unitFiles.map((file) => file.split(".")[1]).sort();
   };
 
   // Get the complete filename
@@ -116,180 +328,244 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <motion.h1 
-        className="text-3xl font-bold text-gray-900 mb-8 text-center"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        📚 Cambridge Audio Books
-      </motion.h1>
-
-      <div className="relative">
-        <AnimatePresence mode="wait">
-          {!selectedBook ? (
-            // Book Selection View
-            <motion.div
-              key="books"
-              initial={{ x: 0, opacity: 1 }}
-              exit={{ x: -100, opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-              className="mb-8"
-            >
-              <h2 className="text-xl font-semibold mb-4">Select a Book</h2>
-              <div className="space-y-3">
-                {audioBooks.map((book, index) => (
-                  <motion.div
-                    key={book.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    onClick={() => handleBookSelect(book.id)}
-                    className="p-4 rounded-lg border-2 cursor-pointer transition-colors border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <h3 className="font-semibold text-gray-800">{book.title}</h3>
-                    <p className="text-sm text-gray-600">{book.description}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          ) : !selectedUnit ? (
-            // Unit Selection View
-            <motion.div
-              key="units"
-              initial={{ x: 100, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -100, opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-              className="mb-8"
-            >
-              {/* Back Button */}
-              <motion.button
-                onClick={handleBackToBooks}
-                className="mb-4 flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-                whileHover={{ x: -5 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="mr-2">←</span>
-                Back to Books
-              </motion.button>
-
-              {/* Selected Book Info */}
+    <div className="min-h-screen bg-[#f7f7f7]">
+      <div className="max-w-4xl mx-auto py-8 px-6">
+        <div className="relative">
+          <AnimatePresence mode="wait">
+            {!selectedBook ? (
+              // Book Selection View
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 }}
-                className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200"
+                key="books"
+                initial={{ x: 0, opacity: 1 }}
+                exit={{ x: -100, opacity: 0 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="mb-8"
               >
-                <h3 className="font-semibold text-blue-800">{getCurrentBook()?.title}</h3>
-                <p className="text-sm text-blue-600">{getCurrentBook()?.description}</p>
+                <div className="mb-8">
+                  <h1 className="text-2xl font-medium text-gray-800 mb-2">
+                    Cambridge Books
+                  </h1>
+                  <p className="text-gray-600 text-sm">
+                    Select a book to start your practice session
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {audioBooks
+                    .sort((a, b) => b.files.length - a.files.length)
+                    .map((book, index) => (
+                      <motion.div
+                        key={book.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        onClick={() =>
+                          !book.isComingSoon && handleBookSelect(book.id)
+                        }
+                        className={cn(
+                          "flex items-center justify-between gap-4 p-4 rounded-lg border transition-all",
+                          book.isComingSoon
+                            ? "bg-gray-100 border-gray-200 !opacity-60 cursor-not-allowed"
+                            : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
+                        )}
+                        whileTap={!book.isComingSoon ? { scale: 0.98 } : {}}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2 gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{
+                                backgroundColor: getCategoryColor(
+                                  book.category
+                                ),
+                              }}
+                            />
+                            <span className="text-xs text-gray-500 capitalize">
+                              {book.category}
+                            </span>
+                            {book.isComingSoon && (
+                              <Badge variant="destructive" className="scale-75">
+                                Coming Soon
+                              </Badge>
+                            )}
+                          </div>
+                          <h3 className="font-medium text-gray-800 mb-1">
+                            {book.title}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {book.description}
+                          </p>
+                        </div>
+                        <div className="p-2 bg-gray-50 rounded-md border border-gray-200">
+                          <div className="relative w-10 h-14">
+                            <Image
+                              src={`/covers/${book.cover}`}
+                              alt={book.title}
+                              fill
+                              className="object-cover rounded"
+                            />
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                </div>
               </motion.div>
-
-              <h2 className="text-xl font-semibold mb-4">Select a Unit</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {getAvailableUnits().map((unit, index) => (
-                  <motion.button
-                    key={unit}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
-                    onClick={() => handleUnitSelect(unit)}
-                    className="p-4 rounded-lg border-2 cursor-pointer transition-colors border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <div className="text-lg font-semibold text-gray-800">
-                      {unit.replace('_', ' ')}
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          ) : (
-            // Lesson Selection View
-            <motion.div
-              key="lessons"
-              initial={{ x: 100, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 100, opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-              className="mb-8"
-            >
-              {/* Back Button */}
-              <motion.button
-                onClick={handleBackToUnits}
-                className="mb-4 flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-                whileHover={{ x: -5 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="mr-2">←</span>
-                Back to Units
-              </motion.button>
-
-              {/* Selected Book & Unit Info */}
+            ) : !selectedUnit ? (
+              // Unit Selection View
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 }}
-                className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200"
+                key="units"
+                initial={{ x: 100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -100, opacity: 0 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="mb-8"
               >
-                <h3 className="font-semibold text-blue-800">{getCurrentBook()?.title}</h3>
-                <p className="text-sm text-blue-600">
-                  {selectedUnit.replace('_', ' ')} - Select a lesson
-                </p>
-              </motion.div>
+                {/* Back Button */}
+                <motion.button
+                  onClick={handleBackToBooks}
+                  className="mb-6 flex items-center text-gray-600 hover:text-gray-800 transition-colors text-sm"
+                  whileHover={{ x: -2 }}
+                >
+                  <span className="mr-2">←</span>
+                  Back to Books
+                </motion.button>
 
-              <h2 className="text-xl font-semibold mb-4">Select a Lesson</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {getAvailableLessons().map((lesson, index) => (
-                  <motion.button
-                    key={lesson}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
-                    onClick={() => handleLessonSelect(lesson)}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                      selectedLesson === lesson
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <div className="text-lg font-semibold text-gray-800">
-                      Lesson {lesson}
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
+                {/* Selected Book Info */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                  className="mb-8 p-4 bg-white rounded-lg border border-gray-200"
+                >
+                  <h2 className="font-medium text-gray-800 mb-1">
+                    {getCurrentBook()?.title}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {getCurrentBook()?.description}
+                  </p>
+                </motion.div>
 
-              {/* Start Practice Button */}
-              <AnimatePresence>
-                {selectedLesson && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className="text-center mt-8"
-                  >
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium text-gray-800 mb-2">
+                    Select a Unit
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Choose a unit to practice
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {getAvailableUnits().map((unit, index) => (
                     <motion.button
-                      onClick={handleStartPractice}
-                      className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      key={unit}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 + index * 0.05 }}
+                      onClick={() => handleUnitSelect(unit)}
+                      className="p-4 rounded-lg border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      Start Practice Session
+                      <div className="text-sm font-medium text-gray-800">
+                        {unit.replace("_", " ")}
+                      </div>
                     </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  ))}
+                </div>
+              </motion.div>
+            ) : (
+              // Lesson Selection View
+              <motion.div
+                key="lessons"
+                initial={{ x: 100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 100, opacity: 0 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="mb-8"
+              >
+                {/* Back Button */}
+                <motion.button
+                  onClick={handleBackToUnits}
+                  className="mb-6 flex items-center text-gray-600 hover:text-gray-800 transition-colors text-sm"
+                  whileHover={{ x: -2 }}
+                >
+                  <span className="mr-2">←</span>
+                  Back to Units
+                </motion.button>
+
+                {/* Selected Book & Unit Info */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                  className="mb-8 p-4 bg-white rounded-lg border border-gray-200"
+                >
+                  <h2 className="font-medium text-gray-800 mb-1">
+                    {getCurrentBook()?.title}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {selectedUnit.replace("_", " ")} - Select an activity
+                  </p>
+                </motion.div>
+
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium text-gray-800 mb-2">
+                    Select an Activity
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Choose an activity to practice
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {getAvailableLessons().map((lesson, index) => (
+                    <motion.button
+                      key={lesson}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 + index * 0.05 }}
+                      onClick={() => handleLessonSelect(lesson)}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all",
+                        selectedLesson === lesson
+                          ? "border-gray-400 bg-gray-50"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                      )}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="text-sm font-medium text-gray-800">
+                        {lesson}
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+
+                {/* Start Practice Button */}
+                <AnimatePresence>
+                  {selectedLesson && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-center mt-8"
+                    >
+                      <motion.button
+                        onClick={handleStartPractice}
+                        className="px-8 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        Start Practice Session
+                      </motion.button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
