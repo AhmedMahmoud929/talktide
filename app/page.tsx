@@ -1,103 +1,296 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAppDispatch } from "@/redux/hooks";
+import {
+  setSelectedBook,
+  setSelectedFile,
+} from "@/redux/features/audio/audioSlice";
+
+interface AudioBook {
+  id: string;
+  title: string;
+  description: string;
+  color: string;
+  files: string[];
+}
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const [selectedBook, setSelectedBookLocal] = useState<string>("");
+  const [selectedUnit, setSelectedUnitLocal] = useState<string>("");
+  const [selectedLesson, setSelectedLessonLocal] = useState<string>("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  // Audio books configuration
+  const audioBooks: AudioBook[] = [
+    {
+      id: "cambridge-vocab-advanced",
+      title: "Cambridge Vocabulary Advanced in Use",
+      description: "Advanced vocabulary building exercises",
+      color: "blue",
+      files: [
+        "U_001.A.mp3",
+        "U_001.B.mp3",
+        "U_001.C.mp3",
+        "U_002.A.mp3",
+        "U_002.B.mp3",
+      ],
+    },
+    {
+      id: "cambridge-grammar-intermediate",
+      title: "Cambridge Grammar Intermediate in Use",
+      description: "Intermediate grammar exercises with practical examples",
+      color: "green",
+      files: ["G_001.A.mp3", "G_001.B.mp3", "G_002.A.mp3"],
+    },
+    {
+      id: "cambridge-listening-advanced",
+      title: "Cambridge Listening Advanced",
+      description: "Advanced listening comprehension with native speakers",
+      color: "purple",
+      files: ["L_001.A.mp3", "L_001.B.mp3"],
+    },
+  ];
+
+  const getCurrentBook = () =>
+    audioBooks.find((book) => book.id === selectedBook);
+
+  // Extract units from files
+  const getAvailableUnits = () => {
+    const files = getCurrentBook()?.files || [];
+    const units = [...new Set(files.map(file => file.split('.')[0]))];
+    return units.sort();
+  };
+
+  // Extract lessons for selected unit
+  const getAvailableLessons = () => {
+    const files = getCurrentBook()?.files || [];
+    const unitFiles = files.filter(file => file.startsWith(selectedUnit + '.'));
+    return unitFiles.map(file => file.split('.')[1]).sort();
+  };
+
+  // Get the complete filename
+  const getSelectedFile = () => {
+    if (selectedUnit && selectedLesson) {
+      return `${selectedUnit}.${selectedLesson}.mp3`;
+    }
+    return "";
+  };
+
+  const handleBookSelect = (bookId: string) => {
+    setSelectedBookLocal(bookId);
+    setSelectedUnitLocal("");
+    setSelectedLessonLocal("");
+  };
+
+  const handleUnitSelect = (unit: string) => {
+    setSelectedUnitLocal(unit);
+    setSelectedLessonLocal("");
+  };
+
+  const handleLessonSelect = (lesson: string) => {
+    setSelectedLessonLocal(lesson);
+  };
+
+  const handleBackToBooks = () => {
+    setSelectedBookLocal("");
+    setSelectedUnitLocal("");
+    setSelectedLessonLocal("");
+  };
+
+  const handleBackToUnits = () => {
+    setSelectedUnitLocal("");
+    setSelectedLessonLocal("");
+  };
+
+  const handleStartPractice = () => {
+    const fileName = getSelectedFile();
+    if (selectedBook && fileName) {
+      dispatch(setSelectedBook(selectedBook));
+      dispatch(setSelectedFile(fileName));
+      router.push(`/practice?book=${selectedBook}&file=${fileName}`);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <motion.h1 
+        className="text-3xl font-bold text-gray-900 mb-8 text-center"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        📚 Cambridge Audio Books
+      </motion.h1>
+
+      <div className="relative">
+        <AnimatePresence mode="wait">
+          {!selectedBook ? (
+            // Book Selection View
+            <motion.div
+              key="books"
+              initial={{ x: 0, opacity: 1 }}
+              exit={{ x: -100, opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="mb-8"
+            >
+              <h2 className="text-xl font-semibold mb-4">Select a Book</h2>
+              <div className="space-y-3">
+                {audioBooks.map((book, index) => (
+                  <motion.div
+                    key={book.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    onClick={() => handleBookSelect(book.id)}
+                    className="p-4 rounded-lg border-2 cursor-pointer transition-colors border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <h3 className="font-semibold text-gray-800">{book.title}</h3>
+                    <p className="text-sm text-gray-600">{book.description}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          ) : !selectedUnit ? (
+            // Unit Selection View
+            <motion.div
+              key="units"
+              initial={{ x: 100, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -100, opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="mb-8"
+            >
+              {/* Back Button */}
+              <motion.button
+                onClick={handleBackToBooks}
+                className="mb-4 flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                whileHover={{ x: -5 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span className="mr-2">←</span>
+                Back to Books
+              </motion.button>
+
+              {/* Selected Book Info */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200"
+              >
+                <h3 className="font-semibold text-blue-800">{getCurrentBook()?.title}</h3>
+                <p className="text-sm text-blue-600">{getCurrentBook()?.description}</p>
+              </motion.div>
+
+              <h2 className="text-xl font-semibold mb-4">Select a Unit</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {getAvailableUnits().map((unit, index) => (
+                  <motion.button
+                    key={unit}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
+                    onClick={() => handleUnitSelect(unit)}
+                    className="p-4 rounded-lg border-2 cursor-pointer transition-colors border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="text-lg font-semibold text-gray-800">
+                      {unit.replace('_', ' ')}
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          ) : (
+            // Lesson Selection View
+            <motion.div
+              key="lessons"
+              initial={{ x: 100, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 100, opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="mb-8"
+            >
+              {/* Back Button */}
+              <motion.button
+                onClick={handleBackToUnits}
+                className="mb-4 flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                whileHover={{ x: -5 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span className="mr-2">←</span>
+                Back to Units
+              </motion.button>
+
+              {/* Selected Book & Unit Info */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200"
+              >
+                <h3 className="font-semibold text-blue-800">{getCurrentBook()?.title}</h3>
+                <p className="text-sm text-blue-600">
+                  {selectedUnit.replace('_', ' ')} - Select a lesson
+                </p>
+              </motion.div>
+
+              <h2 className="text-xl font-semibold mb-4">Select a Lesson</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {getAvailableLessons().map((lesson, index) => (
+                  <motion.button
+                    key={lesson}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
+                    onClick={() => handleLessonSelect(lesson)}
+                    className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                      selectedLesson === lesson
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="text-lg font-semibold text-gray-800">
+                      Lesson {lesson}
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* Start Practice Button */}
+              <AnimatePresence>
+                {selectedLesson && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center mt-8"
+                  >
+                    <motion.button
+                      onClick={handleStartPractice}
+                      className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Start Practice Session
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
