@@ -1,5 +1,8 @@
-"use client";
+"use client"
 
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
 import {
   Dialog,
   DialogContent,
@@ -7,109 +10,111 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+} from "@/components/ui/dialog"
 
 interface AnalysisSettingsDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  silenceThreshold: number;
-  minSilenceDuration: number;
-  minSegmentDuration: number;
-  isAnalyzing: boolean;
-  onSilenceThresholdChange: (value: number) => void;
-  onMinSilenceDurationChange: (value: number) => void;
-  onMinSegmentDurationChange: (value: number) => void;
-  onReAnalyze: () => void;
+  className?: string
 }
 
-export function AnalysisSettingsDialog({
-  isOpen,
-  onOpenChange,
-  silenceThreshold,
-  minSilenceDuration,
-  minSegmentDuration,
-  isAnalyzing,
-  onSilenceThresholdChange,
-  onMinSilenceDurationChange,
-  onMinSegmentDurationChange,
-  onReAnalyze,
-}: AnalysisSettingsDialogProps) {
+export function AnalysisSettingsDialog({ className }: AnalysisSettingsDialogProps) {
+  // Internal state
+  const [isOpen, setIsOpen] = useState(false)
+  const [silenceThreshold, setSilenceThreshold] = useState(-30)
+  const [minSilenceDuration, setMinSilenceDuration] = useState(0.3)
+  const [minSegmentDuration, setMinSegmentDuration] = useState(1.0)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+
+  // Internal handlers
+  const handleReAnalyze = async () => {
+    setIsAnalyzing(true)
+    console.log("Re-analyzing with settings:", {
+      silenceThreshold,
+      minSilenceDuration,
+      minSegmentDuration,
+    })
+
+    // Simulate analysis
+    setTimeout(() => {
+      setIsAnalyzing(false)
+      setIsOpen(false)
+    }, 2000)
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-xs">
-          Analysis
+        <Button variant="outline" size="sm" className={className}>
+          Analysis Settings
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Analysis Settings</DialogTitle>
-          <DialogDescription className="text-sm">
-            Adjust parameters for better segment detection.
-          </DialogDescription>
+          <DialogDescription>Adjust the parameters for audio segment detection.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <div className="space-y-6 py-4">
           {/* Silence Threshold */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Silence Threshold: {silenceThreshold.toFixed(3)}
-            </label>
+            <label className="text-sm font-medium">Silence Threshold: {silenceThreshold} dB</label>
             <Slider
               value={[silenceThreshold]}
-              onValueChange={(value) => onSilenceThresholdChange(value[0])}
-              min={0.001}
-              max={0.1}
-              step={0.001}
+              onValueChange={(value) => setSilenceThreshold(value[0])}
+              min={-60}
+              max={-10}
+              step={1}
               className="w-full"
             />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>-60 dB (Sensitive)</span>
+              <span>-10 dB (Less Sensitive)</span>
+            </div>
           </div>
 
           {/* Min Silence Duration */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Min Silence: {minSilenceDuration.toFixed(1)}s
-            </label>
+            <label className="text-sm font-medium">Min Silence Duration: {minSilenceDuration.toFixed(1)}s</label>
             <Slider
               value={[minSilenceDuration]}
-              onValueChange={(value) => onMinSilenceDurationChange(value[0])}
+              onValueChange={(value) => setMinSilenceDuration(value[0])}
               min={0.1}
-              max={3}
+              max={2}
               step={0.1}
               className="w-full"
             />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>0.1s</span>
+              <span>2.0s</span>
+            </div>
           </div>
 
           {/* Min Segment Duration */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Min Segment: {minSegmentDuration.toFixed(1)}s
-            </label>
+            <label className="text-sm font-medium">Min Segment Duration: {minSegmentDuration.toFixed(1)}s</label>
             <Slider
               value={[minSegmentDuration]}
-              onValueChange={(value) => onMinSegmentDurationChange(value[0])}
-              min={1}
+              onValueChange={(value) => setMinSegmentDuration(value[0])}
+              min={0.5}
               max={10}
-              step={0.5}
+              step={0.1}
               className="w-full"
             />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>0.5s</span>
+              <span>10.0s</span>
+            </div>
           </div>
 
-          {/* Re-analyze Button */}
-          <Button
-            onClick={() => {
-              onReAnalyze();
-              onOpenChange(false);
-            }}
-            disabled={isAnalyzing}
-            className="w-full bg-gray-800 hover:bg-gray-700"
-            size="sm"
-          >
-            {isAnalyzing ? "Analyzing..." : "Re-analyze"}
-          </Button>
+          {/* Action Buttons */}
+          <div className="flex space-x-2 pt-2">
+            <Button onClick={handleReAnalyze} disabled={isAnalyzing} className="flex-1 bg-gray-800 hover:bg-gray-700">
+              {isAnalyzing ? "Analyzing..." : "Re-analyze"}
+            </Button>
+            <Button onClick={() => setIsOpen(false)} variant="outline">
+              Cancel
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

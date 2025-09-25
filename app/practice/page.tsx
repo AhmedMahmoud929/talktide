@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import {
@@ -8,87 +8,68 @@ import {
   setSelectedFile,
   setAudioSegments,
   setIsAnalyzing,
-  setCurrentSegment,
   setIsPlaying,
-  setSilenceThreshold,
-  setMinSilenceDuration,
-  setMinSegmentDuration,
+  type AudioSegment,
 } from "@/redux/features/audio/audioSlice";
 import {
   initializePracticeSession,
   setActiveSegment,
-  setPracticeMode,
-  incrementAttempts,
   markSegmentCompleted,
 } from "../../redux/features/practice/practiceSlice";
 
-// Import our components
 import { PracticeHeader } from "@/components/practice/PracticeHeader";
 import { KeyboardShortcutsModal } from "@/components/practice/KeyboardShortcutsModal";
 import { AudioControls } from "@/components/practice/AudioControls";
 import { SegmentList } from "@/components/practice/SegmentList";
 import {
   WaveformVisualization,
-  WaveformVisualizationRef,
+  type WaveformVisualizationRef,
 } from "@/components/practice/WaveformVisualization";
-import { useAudioAnalysis } from "@/hooks/useAudioAnalysis";
 
 export default function PracticeMode() {
   const searchParams = useSearchParams();
-  const bookId = searchParams.get("book");
-  const fileId = searchParams.get("file");
-
-  // State management
-  const [playContinuously, setPlayContinuously] = useState(false);
-  const [loopCount, setLoopCount] = useState(1);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [currentLoopIndex, setCurrentLoopIndex] = useState(0);
-  const [segmentLoopCounts, setSegmentLoopCounts] = useState<{
-    [key: number]: number;
-  }>({});
-
-  // Custom segment playback states
-  const [segmentCustomSettings, setSegmentCustomSettings] = useState<{
-    [key: number]: { speed: number; infiniteLoop: boolean };
-  }>({});
-
-  // UX enhancement states
-  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-  const [lastCompletedSegment, setLastCompletedSegment] = useState<
-    number | null
-  >(null);
-  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
+  const dispatch = useAppDispatch();
 
   // Redux state
-  const dispatch = useAppDispatch();
   const {
     audioBooks,
     selectedBook,
     selectedFile,
     audioSegments,
     isAnalyzing,
-    currentSegment,
+    playbackSpeed,
+    loopCount,
+    playMode,
     isPlaying,
-    silenceThreshold,
-    minSilenceDuration,
-    minSegmentDuration,
   } = useAppSelector((state) => state.audio);
 
-  const { currentSession, activeSegment, practiceMode, sessionStats } =
-    useAppSelector((state) => state.practice);
+  const { currentSession, activeSegment } = useAppSelector(
+    (state) => state.practice
+  );
+
+  // Local state for UI only
+  const [segmentLoopCounts, setSegmentLoopCounts] = useState<{
+    [key: number]: number;
+  }>({});
+  const [analyzedFiles, setAnalyzedFiles] = useState<Set<string>>(new Set());
 
   // Refs
   const audioRef = useRef<HTMLAudioElement>(null);
   const waveformRef = useRef<WaveformVisualizationRef>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const sessionStartRef = useRef<number>(Date.now());
+  const isMountedRef = useRef(true);
+  const currentSegmentIndexRef = useRef<number>(-1);
+  const isPlayingSegmentRef = useRef<boolean>(false);
+  const customSpeedRef = useRef<number>(1);
+  const infiniteLoopRef = useRef<boolean>(false);
 
-  // Custom hooks
-  const { detectSilenceBasedSegments, drawWaveform } = useAudioAnalysis();
+  const playContinuously = playMode === "continue";
 
-  // Helper functions
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const getCurrentBook = () =>
     audioBooks.find((book) => book.id === selectedBook);
 
@@ -100,348 +81,515 @@ export default function PracticeMode() {
 
   const calculateProgress = () => {
     if (audioSegments.length === 0) return 0;
-    const completedCount = Object.values(currentSession).filter(
+    const completedCount = currentSession.filter(
       (session) => session?.completed
     ).length;
     return (completedCount / audioSegments.length) * 100;
   };
 
-  // Function to stop all audio playback
-  const stopAllAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      
-      // Call cleanup function if it exists
-      if ((audioRef.current as any)._cleanup) {
-        (audioRef.current as any)._cleanup();
-        (audioRef.current as any)._cleanup = null;
+  const detectSentenceBasedSegments = (
+    audioBuffer: AudioBuffer
+  ): AudioSegment[] => {
+    const channelData = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+
+    const threshold = 0.003;
+    const minSilenceDuration = 0.2;
+    const minSegmentDuration = 0.8;
+    const maxSegmentDuration = 6.0;
+
+    const segments: AudioSegment[] = [];
+    let segmentStart = 0;
+    let inSilence = false;
+    let silenceStart = 0;
+
+    const chunkSize = Math.floor(sampleRate * 0.02);
+
+    for (let i = 0; i < channelData.length; i += chunkSize) {
+      const chunk = channelData.slice(i, i + chunkSize);
+      const avgAmplitude =
+        chunk.reduce((sum, sample) => sum + Math.abs(sample), 0) / chunk.length;
+      const timePosition = i / sampleRate;
+
+      if (avgAmplitude < threshold) {
+        if (!inSilence) {
+          inSilence = true;
+          silenceStart = timePosition;
+        }
+      } else {
+        if (inSilence) {
+          const silenceDuration = timePosition - silenceStart;
+          const segmentDuration = silenceStart - segmentStart;
+
+          if (
+            silenceDuration >= minSilenceDuration &&
+            segmentDuration >= minSegmentDuration
+          ) {
+            segments.push({
+              start: segmentStart,
+              end: silenceStart,
+              text: `Segment ${segments.length + 1}`,
+              loopCount: 0,
+              maxLoops: loopCount,
+              isLooping: false,
+            });
+            segmentStart = timePosition;
+          }
+          inSilence = false;
+        }
       }
     }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+
+    const finalDuration = channelData.length / sampleRate - segmentStart;
+    if (finalDuration >= minSegmentDuration) {
+      segments.push({
+        start: segmentStart,
+        end: channelData.length / sampleRate,
+        text: `Segment ${segments.length + 1}`,
+        loopCount: 0,
+        maxLoops: loopCount,
+        isLooping: false,
+      });
     }
-    if (intervalRef.current) {
-      clearTimeout(intervalRef.current);
-      intervalRef.current = null;
-    }
-    dispatch(setActiveSegment(-1));
-    setIsAutoPlaying(false);
-  };
 
-  // Enhanced handleMarkCompleted with animation
-  const handleMarkCompleted = (segmentIndex: number) => {
-    dispatch(markSegmentCompleted(segmentIndex));
-    setLastCompletedSegment(segmentIndex);
+    const finalSegments: AudioSegment[] = [];
+    segments.forEach((segment) => {
+      const duration = segment.end - segment.start;
+      if (duration > maxSegmentDuration) {
+        const numParts = Math.ceil(duration / maxSegmentDuration);
+        const partDuration = duration / numParts;
 
-    setTimeout(() => {
-      setLastCompletedSegment(null);
-    }, 2000);
-  };
-
-  const analyzeAudio = async () => {
-    if (!selectedFile) return;
-
-    dispatch(setIsAnalyzing(true));
-
-    try {
-      const audioContext = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
-      const response = await fetch(`/audio/${selectedFile}`);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-      const segments = detectSilenceBasedSegments(audioBuffer);
-      dispatch(setAudioSegments(segments));
-
-      // Draw waveform after segments are detected
-      setTimeout(() => {
-        const canvas = waveformRef.current?.getCanvas();
-        if (canvas) {
-          drawWaveform(audioBuffer, canvas);
+        for (let i = 0; i < numParts; i++) {
+          finalSegments.push({
+            start: segment.start + i * partDuration,
+            end: segment.start + (i + 1) * partDuration,
+            text: `${segment.text} (Part ${i + 1})`,
+            loopCount: 0,
+            maxLoops: loopCount,
+            isLooping: false,
+          });
         }
-      }, 100);
-    } catch (error) {
-      console.error("Error analyzing audio:", error);
-    } finally {
-      dispatch(setIsAnalyzing(false));
-    }
+      } else {
+        finalSegments.push(segment);
+      }
+    });
+
+    console.log(`Generated ${finalSegments.length} segments`);
+    return finalSegments;
   };
 
-  const playSegment = (
-    segmentIndex: number,
-    customSpeed?: number,
-    infiniteLoop?: boolean
-  ) => {
-    if (!audioRef.current || segmentIndex >= audioSegments.length) return;
+  const handleSegmentEnd = useCallback(
+    (segmentIndex: number) => {
+      console.log(`[v0] Segment ${segmentIndex} ended`);
 
-    const segment = audioSegments[segmentIndex];
-    const audio = audioRef.current;
+      if (!isMountedRef.current) return;
 
-    // Stop any current playback and clean up event listeners
-    stopAllAudio();
+      const currentLoops = segmentLoopCounts[segmentIndex] || 0;
+      const newLoopCount = currentLoops + 1;
 
-    // Reset loop count only when starting a new segment (not when continuing current segment)
-    if (activeSegment !== segmentIndex) {
+      // Use infinite loop setting if enabled, otherwise use global or segment-specific loop count
+      const targetLoops = infiniteLoopRef.current ? Infinity : loopCount;
+
+      console.log(
+        `[v0] Loop ${newLoopCount}/${
+          infiniteLoopRef.current ? "∞" : targetLoops
+        } for segment ${segmentIndex}`
+      );
+
+      // Update loop count
       setSegmentLoopCounts((prev) => ({
         ...prev,
-        [segmentIndex]: 0,
+        [segmentIndex]: newLoopCount,
       }));
-    }
 
-    // Set active segment
-    dispatch(setActiveSegment(segmentIndex));
-    setIsAutoPlaying(true);
-    
-    // Store custom settings for this segment
-    if (customSpeed !== undefined || infiniteLoop !== undefined) {
-      setSegmentCustomSettings((prev) => ({
-        ...prev,
-        [segmentIndex]: {
-          speed: customSpeed || playbackSpeed,
-          infiniteLoop: infiniteLoop || false,
-        },
-      }));
-    }
-
-    // Get settings for this segment (custom or global)
-    const segmentSettings = segmentCustomSettings[segmentIndex];
-    const effectiveSpeed =
-      customSpeed || segmentSettings?.speed || playbackSpeed;
-    const effectiveInfiniteLoop =
-      infiniteLoop || segmentSettings?.infiniteLoop || false;
-    const effectiveLoopCount = effectiveInfiniteLoop ? Infinity : loopCount;
-
-    // Set playback speed
-    audio.playbackRate = effectiveSpeed;
-
-    // Start playing from segment start
-    audio.currentTime = segment.start;
-    audio.play();
-
-    // Create a ref to track if this playback session is still active
-    let isActivePlayback = true;
-
-    // Add event listener for precise stopping
-    const handleTimeUpdate = () => {
-      if (!isActivePlayback || audio.currentTime >= segment.end) {
-        audio.pause();
-        audio.removeEventListener("timeupdate", handleTimeUpdate);
-        
-        if (!isActivePlayback) return; // Exit if this session was cancelled
-
-        // Get the current loop count from state
-        setSegmentLoopCounts((prev) => {
-          const currentLoops = prev[segmentIndex] || 0;
-          const newLoopCount = currentLoops + 1;
-          
-          const updatedCounts = {
-            ...prev,
-            [segmentIndex]: newLoopCount,
-          };
-
-          // Check if we should continue looping
-          if (newLoopCount < effectiveLoopCount && isActivePlayback) {
-            // Continue looping
-            setTimeout(() => {
-              if (isActivePlayback && audioRef.current) {
-                audioRef.current.currentTime = segment.start;
-                audioRef.current.play();
-                audioRef.current.addEventListener("timeupdate", handleTimeUpdate);
-              }
-            }, 100);
-          } else {
-            // Finished looping (only if not infinite)
-            if (!effectiveInfiniteLoop && isActivePlayback) {
-              setIsAutoPlaying(false);
-
-              if (playContinuously && segmentIndex < audioSegments.length - 1) {
-                // Move to next segment
-                setTimeout(() => {
-                  if (isActivePlayback) {
-                    playSegment(segmentIndex + 1);
-                  }
-                }, 500);
-              } else {
-                dispatch(setActiveSegment(-1));
-              }
-            }
+      if (newLoopCount < targetLoops || infiniteLoopRef.current) {
+        // Continue looping this segment
+        console.log(
+          `[v0] Looping segment ${segmentIndex}, loop ${newLoopCount}/${
+            infiniteLoopRef.current ? "∞" : targetLoops
+          }`
+        );
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            playSegment(
+              segmentIndex,
+              customSpeedRef.current,
+              infiniteLoopRef.current
+            );
           }
+        }, 100);
+      } else if (playContinuously && segmentIndex < audioSegments.length - 1) {
+        // Move to next segment
+        console.log(`[v0] Moving to next segment: ${segmentIndex + 1}`);
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            playSegment(segmentIndex + 1);
+          }
+        }, 500);
+      } else {
+        // Stop playback
+        console.log(
+          `[v0] Stopping playback: completed all loops for segment ${segmentIndex}`
+        );
+        stopAllAudio();
+      }
+    },
+    [segmentLoopCounts, loopCount, playContinuously, audioSegments.length]
+  );
 
-          return updatedCounts;
+  const handleTimeUpdate = useCallback(() => {
+    const audio = audioRef.current;
+    if (
+      !audio ||
+      !isPlayingSegmentRef.current ||
+      currentSegmentIndexRef.current === -1
+    ) {
+      return;
+    }
+
+    const segmentIndex = currentSegmentIndexRef.current;
+    const segment = audioSegments[segmentIndex];
+
+    if (!segment) return;
+
+    // Check if we've reached or passed the end time
+    if (audio.currentTime >= segment.end) {
+      console.log(
+        `[v0] Segment ${segmentIndex} reached end at ${audio.currentTime.toFixed(
+          3
+        )}s (target: ${segment.end.toFixed(3)}s)`
+      );
+
+      // Stop the audio immediately
+      audio.pause();
+
+      // Remove the timeupdate listener to prevent further calls
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+
+      // Reset to start of segment
+      audio.currentTime = segment.start;
+
+      // Mark as not playing
+      isPlayingSegmentRef.current = false;
+
+      // Handle what happens next (looping, next segment, or stop)
+      handleSegmentEnd(segmentIndex);
+    }
+  }, [audioSegments, handleSegmentEnd]);
+
+  const stopAllAudio = useCallback(() => {
+    console.log(`[v0] Stopping all audio playback`);
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.removeEventListener("timeupdate", handleTimeUpdate);
+    }
+
+    isPlayingSegmentRef.current = false;
+    currentSegmentIndexRef.current = -1;
+
+    if (isMountedRef.current) {
+      dispatch(setActiveSegment(-1));
+      dispatch(setIsPlaying(false));
+    }
+  }, [dispatch, handleTimeUpdate]);
+
+  const playSegment = useCallback(
+    (segmentIndex: number, customSpeed?: number, infiniteLoop?: boolean) => {
+      if (
+        !audioRef.current ||
+        segmentIndex >= audioSegments.length ||
+        segmentIndex < 0 ||
+        !isMountedRef.current
+      )
+        return;
+
+      const segment = audioSegments[segmentIndex];
+      const audio = audioRef.current;
+
+      console.log(
+        `[v0] Playing segment ${segmentIndex}: ${segment.start.toFixed(
+          3
+        )}s - ${segment.end.toFixed(3)}s`
+      );
+
+      // Store custom settings in refs
+      customSpeedRef.current = customSpeed || playbackSpeed;
+      infiniteLoopRef.current = infiniteLoop || false;
+
+      // Stop any current playback
+      stopAllAudio();
+
+      // Reset loop count if this is a new segment or if we're starting fresh
+      if (currentSegmentIndexRef.current !== segmentIndex) {
+        setSegmentLoopCounts((prev) => ({
+          ...prev,
+          [segmentIndex]: 0,
+        }));
+      }
+
+      // Update refs and state
+      currentSegmentIndexRef.current = segmentIndex;
+      isPlayingSegmentRef.current = true;
+
+      if (isMountedRef.current) {
+        dispatch(setActiveSegment(segmentIndex));
+        dispatch(setIsPlaying(true));
+      }
+
+      // Set audio properties
+      const effectiveSpeed = customSpeed || playbackSpeed;
+      audio.playbackRate = effectiveSpeed;
+      audio.currentTime = segment.start;
+
+      // Add the timeupdate listener
+      audio.addEventListener("timeupdate", handleTimeUpdate);
+
+      // Start playing
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.error("Error playing audio:", error);
+          if (isMountedRef.current) {
+            stopAllAudio();
+          }
         });
       }
-    };
+    },
+    [audioSegments, playbackSpeed, dispatch, stopAllAudio, handleTimeUpdate]
+  );
 
-    audio.addEventListener("timeupdate", handleTimeUpdate);
+  const analyzeAudio = useCallback(async () => {
+    if (
+      !selectedFile ||
+      !isMountedRef.current ||
+      analyzedFiles.has(selectedFile)
+    )
+      return;
 
-    // Store cleanup function to cancel this playback session
-    const cleanup = () => {
-      isActivePlayback = false;
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+    console.log("Starting audio analysis for:", selectedFile);
+    dispatch(setIsAnalyzing(true));
+
+    setAnalyzedFiles((prev) => new Set(prev).add(selectedFile));
+
+    try {
+      const response = await fetch(`/audio/${selectedFile}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch audio file: ${response.statusText}`);
       }
-    };
 
-    // Backup timeout in case timeupdate doesn't fire (only if not infinite loop)
-    if (!effectiveInfiniteLoop) {
-      timeoutRef.current = setTimeout(() => {
-        cleanup();
-        handleTimeUpdate();
-      }, ((segment.end - segment.start + 0.1) * 1000) / effectiveSpeed);
+      const arrayBuffer = await response.arrayBuffer();
+
+      let audioContext: AudioContext;
+      try {
+        audioContext = new AudioContext();
+      } catch (error) {
+        console.error("Failed to create AudioContext:", error);
+        throw new Error("Audio context not supported in this browser");
+      }
+
+      let audioBuffer: AudioBuffer;
+      try {
+        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      } catch (error) {
+        console.error("Failed to decode audio data:", error);
+        throw new Error(
+          "Unable to decode audio file. Please ensure it's a valid MP3 file."
+        );
+      }
+
+      const segments = detectSentenceBasedSegments(audioBuffer);
+
+      if (isMountedRef.current) {
+        dispatch(setAudioSegments(segments));
+        console.log(`Analysis complete: ${segments.length} segments found`);
+      }
+
+      await audioContext.close();
+    } catch (error) {
+      console.error("Error analyzing audio:", error);
+      if (isMountedRef.current) {
+        setAnalyzedFiles((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(selectedFile);
+          return newSet;
+        });
+
+        alert(
+          `Error loading audio file: ${selectedFile}. ${
+            error instanceof Error
+              ? error.message
+              : "Please make sure the file exists in the /public/audio/ directory and is a valid MP3 file."
+          }`
+        );
+      }
+    } finally {
+      if (isMountedRef.current) {
+        dispatch(setIsAnalyzing(false));
+      }
     }
+  }, [selectedFile, analyzedFiles, dispatch]);
 
-    // Store cleanup function for stopAllAudio to use
-    (audioRef.current as any)._cleanup = cleanup;
-  };
-
-  // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
+    const handleKeyPress = (event: KeyboardEvent) => {
       if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        (event.target as HTMLElement)?.contentEditable === "true"
       ) {
         return;
       }
 
-      switch (e.key.toLowerCase()) {
+      switch (event.key.toLowerCase()) {
         case " ":
-          e.preventDefault();
+          event.preventDefault();
           if (activeSegment !== -1) {
-            const isCurrentlyPlaying =
-              audioRef.current && !audioRef.current.paused;
-            if (isCurrentlyPlaying) {
+            if (isPlaying) {
               stopAllAudio();
             } else {
               playSegment(activeSegment);
             }
           }
           break;
-        case "n":
-          e.preventDefault();
+        case "arrowleft":
+          event.preventDefault();
+          if (activeSegment > 0) {
+            playSegment(activeSegment - 1);
+          }
+          break;
+        case "arrowright":
+          event.preventDefault();
           if (activeSegment < audioSegments.length - 1) {
             playSegment(activeSegment + 1);
           }
           break;
-        case "p":
-          e.preventDefault();
-          const prevSegment =
-            activeSegment > 0 ? activeSegment - 1 : audioSegments.length - 1;
-          dispatch(setActiveSegment(prevSegment));
+        case "r":
+          event.preventDefault();
+          if (activeSegment !== -1) {
+            playSegment(activeSegment);
+          }
           break;
-        case "c":
-          e.preventDefault();
+        case "m":
+          event.preventDefault();
           if (activeSegment !== -1) {
             handleMarkCompleted(activeSegment);
           }
           break;
         case "s":
-          e.preventDefault();
+          event.preventDefault();
           stopAllAudio();
           break;
         case "?":
-          e.preventDefault();
-          setShowKeyboardShortcuts(!showKeyboardShortcuts);
+          event.preventDefault();
           break;
       }
     };
 
-    document.addEventListener("keydown", handleKeyPress);
-    return () => document.removeEventListener("keydown", handleKeyPress);
-  }, [activeSegment, audioSegments.length, showKeyboardShortcuts]);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [
+    activeSegment,
+    isPlaying,
+    audioSegments.length,
+    playSegment,
+    stopAllAudio,
+  ]);
 
-  // Initialize from URL parameters
   useEffect(() => {
-    if (bookId && fileId) {
+    const bookId = searchParams.get("book");
+    const fileId = searchParams.get("file");
+
+    if (bookId && bookId !== selectedBook) {
       dispatch(setSelectedBook(bookId));
+    }
+
+    if (fileId && fileId !== selectedFile) {
       dispatch(setSelectedFile(fileId));
     }
-    sessionStartRef.current = Date.now();
-  }, [bookId, fileId]);
+  }, [searchParams, selectedBook, selectedFile, dispatch]);
 
-  // Auto-analyze when audio is ready
   useEffect(() => {
-    if (selectedFile && audioRef.current) {
-      const timer = setTimeout(() => {
-        analyzeAudio();
-      }, 1000);
-
-      return () => clearTimeout(timer);
+    if (audioSegments.length > 0 && isMountedRef.current) {
+      dispatch(initializePracticeSession(audioSegments));
     }
-  }, [selectedFile, audioRef.current]);
+  }, [audioSegments, dispatch]);
 
-  const currentBook = getCurrentBook();
+  useEffect(() => {
+    if (
+      selectedFile &&
+      audioSegments.length === 0 &&
+      !isAnalyzing &&
+      !analyzedFiles.has(selectedFile)
+    ) {
+      analyzeAudio();
+    }
+  }, [
+    selectedFile,
+    audioSegments.length,
+    isAnalyzing,
+    analyzedFiles,
+    analyzeAudio,
+  ]);
+
+  useEffect(() => {
+    if (selectedFile) {
+      setAnalyzedFiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.clear();
+        return newSet;
+      });
+    }
+  }, [selectedFile]);
+
+  // Remove the conflicting effect that was interfering with playback
+  // This was causing issues with the custom playback control
+
+  const handleMarkCompleted = (segmentIndex: number) => {
+    dispatch(markSegmentCompleted(segmentIndex));
+  };
+
+  if (selectedFile && !selectedFile.endsWith(".mp3")) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            Invalid Audio File
+          </h2>
+          <p className="text-gray-600">Please select a valid MP3 audio file.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7]">
-      <PracticeHeader
-        bookTitle={currentBook?.title}
-        fileId={selectedFile || undefined}
-        progress={calculateProgress()}
-        onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
+    <div className="min-h-screen bg-gray-50">
+      <PracticeHeader />
+
+      <KeyboardShortcutsModal />
+
+      <audio
+        ref={audioRef}
+        src={selectedFile ? `/audio/${selectedFile}` : undefined}
+        style={{ display: "none" }}
+        onLoadedData={() => console.log(`[v0] Audio loaded: ${selectedFile}`)}
+        onError={(e) => console.error(`[v0] Audio error:`, e)}
       />
 
-      <KeyboardShortcutsModal
-        isOpen={showKeyboardShortcuts}
-        onClose={() => setShowKeyboardShortcuts(false)}
-      />
-
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Column - Controls */}
           <div className="lg:col-span-1 sticky top-6 h-fit">
-            <AudioControls
-              selectedFile={selectedFile || undefined}
-              playbackSpeed={playbackSpeed}
-              loopCount={loopCount}
-              playContinuously={playContinuously}
-              isAutoPlaying={isAutoPlaying}
-              showAnalysisDialog={showAnalysisDialog}
-              silenceThreshold={silenceThreshold}
-              minSilenceDuration={minSilenceDuration}
-              minSegmentDuration={minSegmentDuration}
-              isAnalyzing={isAnalyzing}
-              onPlaybackSpeedChange={setPlaybackSpeed}
-              onLoopCountChange={setLoopCount}
-              onPlayContinuouslyChange={setPlayContinuously}
-              onShowAnalysisDialogChange={setShowAnalysisDialog}
-              onSilenceThresholdChange={(value) =>
-                dispatch(setSilenceThreshold(value))
-              }
-              onMinSilenceDurationChange={(value) =>
-                dispatch(setMinSilenceDuration(value))
-              }
-              onMinSegmentDurationChange={(value) =>
-                dispatch(setMinSegmentDuration(value))
-              }
-              onReAnalyze={analyzeAudio}
-              onPlay={() => setIsAutoPlaying(true)}
-              onPause={() => setIsAutoPlaying(false)}
-              audioRef={audioRef as any}
-            />
+            <AudioControls audioRef={audioRef as any} />
           </div>
 
-          {/* Right Column - Segments */}
           <div className="lg:col-span-3">
             <div className="mb-4">
               <WaveformVisualization ref={waveformRef} />
             </div>
             <SegmentList
-              segments={audioSegments as any}
-              currentSession={currentSession}
-              activeSegment={activeSegment}
-              isAutoPlaying={isAutoPlaying}
-              segmentLoopCounts={segmentLoopCounts}
-              loopCount={loopCount}
-              isAnalyzing={isAnalyzing}
+              formatTime={formatTime}
               onPlaySegment={playSegment}
               onStopSegment={stopAllAudio}
               onMarkCompleted={handleMarkCompleted}
-              formatTime={formatTime}
             />
           </div>
         </div>

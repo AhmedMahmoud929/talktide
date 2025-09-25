@@ -1,53 +1,64 @@
-"use client";
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 interface KeyboardShortcutsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  className?: string
+  children?: React.ReactNode
 }
 
-export function KeyboardShortcutsModal({
-  isOpen,
-  onClose,
-}: KeyboardShortcutsModalProps) {
-  if (!isOpen) return null;
+export function KeyboardShortcutsModal({ children, className }: KeyboardShortcutsModalProps) {
+  // Internal state
+  const [isOpen, setIsOpen] = useState(false)
+
+  const shortcuts = [
+    { key: "Space", description: "Play/Pause current segment" },
+    { key: "N", description: "Next segment" },
+    { key: "P", description: "Previous segment" },
+    { key: "C", description: "Mark current segment as completed" },
+    { key: "S", description: "Stop all playback" },
+    { key: "?", description: "Show/hide this help" },
+  ]
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">
-            Keyboard Shortcuts
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Play/Pause</span>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">Space</kbd>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Keyboard Shortcuts</DialogTitle>
+          <DialogDescription>
+            Use these keyboard shortcuts to navigate and control playback efficiently.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <div className="space-y-3">
+            {shortcuts.map((shortcut, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">{shortcut.description}</span>
+                <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">
+                  {shortcut.key}
+                </kbd>
+              </div>
+            ))}
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Next</span>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">N</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Previous</span>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">P</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Complete</span>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">C</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Stop</span>
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">S</kbd>
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <Button onClick={() => setIsOpen(false)} className="w-full bg-gray-800 hover:bg-gray-700">
+              Got it
+            </Button>
           </div>
         </div>
-      </div>
-    </div>
-  );
+      </DialogContent>
+    </Dialog>
+  )
 }

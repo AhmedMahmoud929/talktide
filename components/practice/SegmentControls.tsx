@@ -1,20 +1,20 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { cn } from "@/lib/utils";
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
+import { cn } from "@/lib/utils"
 
 interface SegmentControlsProps {
-  segmentIndex: number;
-  isActive: boolean;
-  isPlaying: boolean;
-  isCompleted: boolean;
-  currentLoops: number;
-  totalLoops: number;
-  onPlay: (index: number, customSpeed?: number, infiniteLoop?: boolean) => void;
-  onStop: () => void;
-  onMarkCompleted: (index: number) => void;
+  segmentIndex: number
+  isActive: boolean
+  isPlaying: boolean
+  isCompleted: boolean
+  currentLoops: number
+  totalLoops: number
+  onPlay: (index: number, customSpeed?: number, infiniteLoop?: boolean) => void
+  onStop: () => void
+  onMarkCompleted: (index: number) => void
 }
 
 export function SegmentControls({
@@ -28,18 +28,18 @@ export function SegmentControls({
   onStop,
   onMarkCompleted,
 }: SegmentControlsProps) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [customSpeed, setCustomSpeed] = useState(1.0);
-  const [infiniteLoop, setInfiniteLoop] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [customSpeed, setCustomSpeed] = useState(1.0)
+  const [infiniteLoop, setInfiniteLoop] = useState(false)
 
   const handlePlay = () => {
     if (showAdvanced) {
-      onStop();
-      onPlay(segmentIndex, customSpeed, infiniteLoop);
+      onStop()
+      onPlay(segmentIndex, customSpeed, infiniteLoop)
     } else {
-      onPlay(segmentIndex);
+      onPlay(segmentIndex)
     }
-  };
+  }
 
   return (
     <div className="relative space-y-2">
@@ -50,11 +50,11 @@ export function SegmentControls({
           size="sm"
           variant="outline"
           onClick={(e) => {
-            e.stopPropagation();
+            e.stopPropagation()
             if (isActive && isPlaying) {
-              onStop();
+              onStop()
             } else {
-              handlePlay();
+              handlePlay()
             }
           }}
           className="text-xs h-7 px-2"
@@ -67,8 +67,8 @@ export function SegmentControls({
           size="sm"
           variant="outline"
           onClick={(e) => {
-            e.stopPropagation();
-            setShowAdvanced(!showAdvanced);
+            e.stopPropagation()
+            setShowAdvanced(!showAdvanced)
           }}
           className={cn("text-xs h-7 px-1", showAdvanced ? "bg-gray-100" : "")}
           title="Toggle advanced controls"
@@ -81,8 +81,8 @@ export function SegmentControls({
           <Button
             size="sm"
             onClick={(e) => {
-              e.stopPropagation();
-              onMarkCompleted(segmentIndex);
+              e.stopPropagation()
+              onMarkCompleted(segmentIndex)
             }}
             className="text-xs h-7 px-2 bg-gray-600 hover:bg-gray-700"
           >
@@ -97,15 +97,13 @@ export function SegmentControls({
           {/* Speed Control */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-gray-700">
-                Speed: {customSpeed.toFixed(2)}x
-              </label>
+              <label className="text-xs font-medium text-gray-700">Speed: {customSpeed.toFixed(2)}x</label>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={(e) => {
-                  e.stopPropagation();
-                  setCustomSpeed(1.0);
+                  e.stopPropagation()
+                  setCustomSpeed(1.0)
                 }}
                 className="text-xs h-6 px-2"
               >
@@ -129,23 +127,21 @@ export function SegmentControls({
 
           {/* Infinite Loop Toggle */}
           <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-gray-700">
-              Infinite Loop
-            </label>
+            <label className="text-xs font-medium text-gray-700">Infinite Loop</label>
             <button
               onClick={(e) => {
-                e.stopPropagation();
-                setInfiniteLoop(!infiniteLoop);
+                e.stopPropagation()
+                setInfiniteLoop(!infiniteLoop)
               }}
               className={cn(
                 "relative w-8 h-4 rounded-full transition-colors",
-                infiniteLoop ? "bg-gray-600" : "bg-gray-300"
+                infiniteLoop ? "bg-gray-600" : "bg-gray-300",
               )}
             >
               <span
                 className={cn(
                   "absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform shadow-sm",
-                  infiniteLoop ? "-translate-x-3.5" : "translate-x-0.5"
+                  infiniteLoop ? "-translate-x-3.5" : "translate-x-0.5",
                 )}
               />
             </button>
@@ -160,9 +156,7 @@ export function SegmentControls({
 
           {/* Quick Speed Presets */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">
-              Quick Presets:
-            </label>
+            <label className="text-xs font-medium text-gray-700">Quick Presets:</label>
             <div className="flex space-x-1">
               {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) => (
                 <Button
@@ -170,13 +164,10 @@ export function SegmentControls({
                   size="sm"
                   variant="outline"
                   onClick={(e) => {
-                    e.stopPropagation();
-                    setCustomSpeed(speed);
+                    e.stopPropagation()
+                    setCustomSpeed(speed)
                   }}
-                  className={cn(
-                    "text-xs h-6 px-2",
-                    customSpeed === speed ? "bg-gray-200" : ""
-                  )}
+                  className={cn("text-xs h-6 px-2", customSpeed === speed ? "bg-gray-200" : "")}
                 >
                   {speed}x
                 </Button>
@@ -186,5 +177,5 @@ export function SegmentControls({
         </div>
       )}
     </div>
-  );
+  )
 }
