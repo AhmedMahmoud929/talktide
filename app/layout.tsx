@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/shared/Navbar";
 import { Providers } from "./providers";
+import { Suspense } from "react";
 
 const geist = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Cambridge Audio Learning Assistant",
-  description: "Professional audio learning tool for Cambridge English materials",
+  description:
+    "Professional audio learning tool for Cambridge English materials",
 };
 
 export default function RootLayout({
@@ -30,8 +32,10 @@ export default function RootLayout({
         className={`${geist.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
         <Providers>
-          <Navbar />
-          <main>{children}</main>
+          <Suspense fallback={<div>Loading...</div>}>
+            <Navbar />
+            <main>{children}</main>
+          </Suspense>
         </Providers>
       </body>
     </html>
