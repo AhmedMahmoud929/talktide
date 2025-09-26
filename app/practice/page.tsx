@@ -9,6 +9,7 @@ import {
   setAudioSegments,
   setIsAnalyzing,
   setIsPlaying,
+  forceReanalysis,
   type AudioSegment,
 } from "@/redux/features/audio/audioSlice";
 import {
@@ -25,6 +26,13 @@ import {
   WaveformVisualization,
   type WaveformVisualizationRef,
 } from "@/components/practice/WaveformVisualization";
+import dynamic from "next/dynamic";
+import PdfPageViewer from "@/components/practice/PdfPageViewer";
+// import PdfViewer from "@/components/practice/PdfPageViewer";
+
+const PdfViewer = dynamic(() => import("@/components/practice/PdfPageViewer"), {
+  ssr: false,
+});
 
 export default function PracticeMode() {
   const searchParams = useSearchParams();
@@ -70,6 +78,20 @@ export default function PracticeMode() {
     };
   }, []);
 
+  // Initialize practice session when audio segments are loaded
+  useEffect(() => {
+    if (audioSegments.length > 0) {
+      dispatch(initializePracticeSession(audioSegments));
+    }
+  }, [audioSegments, dispatch]);
+
+  const getExplanationPageNumber = () => {
+    const bookPadding = getCurrentBook()?.paddingPreUnits || 0;
+    const unitNumber = Number(selectedFile.split(".")[0].split("_")[1]);
+    const pageNumber = bookPadding + unitNumber + (unitNumber - 1);
+    return String(pageNumber);
+  };
+
   const getCurrentBook = () =>
     audioBooks.find((book) => book.id === selectedBook);
 
@@ -92,26 +114,42 @@ export default function PracticeMode() {
   ): AudioSegment[] => {
     const channelData = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
-
-    const threshold = 0.003;
-    const minSilenceDuration = 0.2;
-    const minSegmentDuration = 0.8;
-    const maxSegmentDuration = 6.0;
-
     const segments: AudioSegment[] = [];
+
+    // Enhanced parameters for better sentence detection
+    const SILENCE_THRESHOLD = 0.01; // Lower threshold for better sensitivity
+    const MIN_SENTENCE_PAUSE = 0.3; // Minimum pause to consider sentence boundary
+    const MIN_SEGMENT_DURATION = 1.0; // Minimum segment length
+    const MAX_SEGMENT_DURATION = 15.0; // Maximum segment length before forced split
+    const ENERGY_DECAY_THRESHOLD = 2.0; // Energy decay ratio for sentence detection
+    const CHUNK_SIZE = Math.floor(sampleRate * 0.1); // 100ms chunks for analysis
+
     let segmentStart = 0;
     let inSilence = false;
     let silenceStart = 0;
+    let lastEnergyLevel = 0;
 
-    const chunkSize = Math.floor(sampleRate * 0.02);
+    // Process audio in chunks for better performance and accuracy
+    for (let i = 0; i < channelData.length; i += CHUNK_SIZE) {
+      const chunk = channelData.slice(
+        i,
+        Math.min(i + CHUNK_SIZE, channelData.length)
+      );
 
-    for (let i = 0; i < channelData.length; i += chunkSize) {
-      const chunk = channelData.slice(i, i + chunkSize);
+      // Calculate both average amplitude and RMS energy
       const avgAmplitude =
         chunk.reduce((sum, sample) => sum + Math.abs(sample), 0) / chunk.length;
+      const rmsEnergy = Math.sqrt(
+        chunk.reduce((sum, sample) => sum + sample * sample, 0) / chunk.length
+      );
+
       const timePosition = i / sampleRate;
 
-      if (avgAmplitude < threshold) {
+      // Detect silence with improved sensitivity
+      if (
+        avgAmplitude < SILENCE_THRESHOLD &&
+        rmsEnergy < SILENCE_THRESHOLD * 1.5
+      ) {
         if (!inSilence) {
           inSilence = true;
           silenceStart = timePosition;
@@ -121,61 +159,161 @@ export default function PracticeMode() {
           const silenceDuration = timePosition - silenceStart;
           const segmentDuration = silenceStart - segmentStart;
 
-          if (
-            silenceDuration >= minSilenceDuration &&
-            segmentDuration >= minSegmentDuration
-          ) {
-            segments.push({
-              start: segmentStart,
-              end: silenceStart,
-              text: `Segment ${segments.length + 1}`,
-              loopCount: 0,
-              maxLoops: loopCount,
-              isLooping: false,
-            });
-            segmentStart = timePosition;
+          // Enhanced sentence boundary detection
+          const isLikelySentenceEnd =
+            silenceDuration >= MIN_SENTENCE_PAUSE && // Sufficient pause
+            segmentDuration >= MIN_SEGMENT_DURATION && // Minimum content length
+            (silenceDuration >= 0.8 || // Long pause (likely sentence end)
+              (silenceDuration >= MIN_SENTENCE_PAUSE &&
+                lastEnergyLevel > rmsEnergy * ENERGY_DECAY_THRESHOLD)); // Energy decay pattern
+
+          if (isLikelySentenceEnd) {
+            // Check if this would create an overly long segment
+            if (segmentDuration <= MAX_SEGMENT_DURATION) {
+              segments.push({
+                start: segmentStart,
+                end: silenceStart,
+                text: `Sentence ${segments.length + 1}`,
+                loopCount: 0,
+                maxLoops: loopCount,
+                isLooping: false,
+              });
+              segmentStart = timePosition;
+            } else {
+              // Split long segment at natural pause points
+              const midPoint = segmentStart + segmentDuration / 2;
+              const splitPoint = findBestSplitPoint(
+                channelData,
+                sampleRate,
+                segmentStart,
+                silenceStart,
+                midPoint
+              );
+
+              segments.push({
+                start: segmentStart,
+                end: splitPoint,
+                text: `Sentence ${segments.length + 1} (Part A)`,
+                loopCount: 0,
+                maxLoops: loopCount,
+                isLooping: false,
+              });
+
+              segments.push({
+                start: splitPoint,
+                end: silenceStart,
+                text: `Sentence ${segments.length} (Part B)`,
+                loopCount: 0,
+                maxLoops: loopCount,
+                isLooping: false,
+              });
+
+              segmentStart = timePosition;
+            }
           }
           inSilence = false;
         }
+        lastEnergyLevel = rmsEnergy;
       }
     }
 
+    // Handle final segment
     const finalDuration = channelData.length / sampleRate - segmentStart;
-    if (finalDuration >= minSegmentDuration) {
-      segments.push({
-        start: segmentStart,
-        end: channelData.length / sampleRate,
-        text: `Segment ${segments.length + 1}`,
-        loopCount: 0,
-        maxLoops: loopCount,
-        isLooping: false,
-      });
+    if (finalDuration >= MIN_SEGMENT_DURATION) {
+      if (finalDuration <= MAX_SEGMENT_DURATION) {
+        segments.push({
+          start: segmentStart,
+          end: channelData.length / sampleRate,
+          text: `Sentence ${segments.length + 1}`,
+          loopCount: 0,
+          maxLoops: loopCount,
+          isLooping: false,
+        });
+      } else {
+        // Split final long segment
+        const midPoint = segmentStart + finalDuration / 2;
+        const splitPoint = findBestSplitPoint(
+          channelData,
+          sampleRate,
+          segmentStart,
+          channelData.length / sampleRate,
+          midPoint
+        );
+
+        segments.push({
+          start: segmentStart,
+          end: splitPoint,
+          text: `Sentence ${segments.length + 1} (Part A)`,
+          loopCount: 0,
+          maxLoops: loopCount,
+          isLooping: false,
+        });
+
+        segments.push({
+          start: splitPoint,
+          end: channelData.length / sampleRate,
+          text: `Sentence ${segments.length} (Part B)`,
+          loopCount: 0,
+          maxLoops: loopCount,
+          isLooping: false,
+        });
+      }
     }
 
-    const finalSegments: AudioSegment[] = [];
-    segments.forEach((segment) => {
-      const duration = segment.end - segment.start;
-      if (duration > maxSegmentDuration) {
-        const numParts = Math.ceil(duration / maxSegmentDuration);
-        const partDuration = duration / numParts;
-
-        for (let i = 0; i < numParts; i++) {
-          finalSegments.push({
-            start: segment.start + i * partDuration,
-            end: segment.start + (i + 1) * partDuration,
-            text: `${segment.text} (Part ${i + 1})`,
+    return segments.length > 0
+      ? segments
+      : [
+          {
+            start: 0,
+            end: channelData.length / sampleRate,
+            text: "Complete Audio",
             loopCount: 0,
             maxLoops: loopCount,
             isLooping: false,
-          });
-        }
-      } else {
-        finalSegments.push(segment);
-      }
-    });
+          },
+        ];
+  };
 
-    console.log(`Generated ${finalSegments.length} segments`);
-    return finalSegments;
+  // Helper function to find the best split point in long segments
+  const findBestSplitPoint = (
+    channelData: Float32Array,
+    sampleRate: number,
+    startTime: number,
+    endTime: number,
+    preferredTime: number
+  ): number => {
+    const startSample = Math.floor(startTime * sampleRate);
+    const endSample = Math.floor(endTime * sampleRate);
+    const preferredSample = Math.floor(preferredTime * sampleRate);
+
+    // Search window around preferred split point (±1 second)
+    const searchWindow = sampleRate;
+    const searchStart = Math.max(startSample, preferredSample - searchWindow);
+    const searchEnd = Math.min(endSample, preferredSample + searchWindow);
+
+    let bestSplitSample = preferredSample;
+    let lowestEnergy = Infinity;
+
+    // Find the point with lowest energy (likely a natural pause)
+    const chunkSize = Math.floor(sampleRate * 0.05); // 50ms chunks
+
+    for (let i = searchStart; i < searchEnd; i += chunkSize) {
+      const chunkEnd = Math.min(i + chunkSize, searchEnd);
+      let energy = 0;
+
+      for (let j = i; j < chunkEnd; j++) {
+        energy += channelData[j] * channelData[j];
+      }
+
+      energy = energy / (chunkEnd - i);
+
+      if (energy < lowestEnergy) {
+        lowestEnergy = energy;
+        bestSplitSample = i + Math.floor((chunkEnd - i) / 2);
+      }
+    }
+
+    return bestSplitSample / sampleRate;
   };
 
   const handleSegmentEnd = useCallback(
@@ -236,6 +374,14 @@ export default function PracticeMode() {
     },
     [segmentLoopCounts, loopCount, playContinuously, audioSegments.length]
   );
+
+  // Add effect to reset segment loop counts when global loop count changes
+  useEffect(() => {
+    // Reset all segment loop counts when global loop count changes
+    setSegmentLoopCounts({});
+    // Also reset the infinite loop flag to prevent infinite loops
+    infiniteLoopRef.current = false;
+  }, [loopCount]);
 
   const handleTimeUpdate = useCallback(() => {
     const audio = audioRef.current;
@@ -313,9 +459,9 @@ export default function PracticeMode() {
         )}s - ${segment.end.toFixed(3)}s`
       );
 
-      // Store custom settings in refs
+      // Store custom settings in refs - explicitly handle undefined infiniteLoop
       customSpeedRef.current = customSpeed || playbackSpeed;
-      infiniteLoopRef.current = infiniteLoop || false;
+      infiniteLoopRef.current = infiniteLoop === true; // Only true if explicitly set to true
 
       // Stop any current playback
       stopAllAudio();
@@ -495,6 +641,7 @@ export default function PracticeMode() {
     stopAllAudio,
   ]);
 
+  // Enhanced useEffect for handling route changes and ensuring fresh analysis
   useEffect(() => {
     const bookId = searchParams.get("book");
     const fileId = searchParams.get("file");
@@ -504,16 +651,24 @@ export default function PracticeMode() {
     }
 
     if (fileId && fileId !== selectedFile) {
+      // Clear previous analysis state when file changes
+      dispatch(forceReanalysis());
+
+      // Clear analyzed files cache to force re-analysis
+      setAnalyzedFiles(new Set());
+
+      // Reset segment loop counts
+      setSegmentLoopCounts({});
+
+      // Stop any current audio playback
+      stopAllAudio();
+
+      // Set the new file
       dispatch(setSelectedFile(fileId));
     }
-  }, [searchParams, selectedBook, selectedFile, dispatch]);
+  }, [searchParams, selectedBook, selectedFile, dispatch, stopAllAudio]);
 
-  useEffect(() => {
-    if (audioSegments.length > 0 && isMountedRef.current) {
-      dispatch(initializePracticeSession(audioSegments));
-    }
-  }, [audioSegments, dispatch]);
-
+  // Modified useEffect to ensure analysis triggers immediately after file change
   useEffect(() => {
     if (
       selectedFile &&
@@ -521,7 +676,14 @@ export default function PracticeMode() {
       !isAnalyzing &&
       !analyzedFiles.has(selectedFile)
     ) {
-      analyzeAudio();
+      // Add a small delay to ensure DOM is ready
+      const timeoutId = setTimeout(() => {
+        if (isMountedRef.current) {
+          analyzeAudio();
+        }
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
     }
   }, [
     selectedFile,
@@ -531,18 +693,17 @@ export default function PracticeMode() {
     analyzeAudio,
   ]);
 
-  useEffect(() => {
-    if (selectedFile) {
-      setAnalyzedFiles((prev) => {
-        const newSet = new Set(prev);
-        newSet.clear();
-        return newSet;
-      });
-    }
-  }, [selectedFile]);
-
-  // Remove the conflicting effect that was interfering with playback
-  // This was causing issues with the custom playback control
+  // Remove the problematic useEffect that was clearing analyzedFiles
+  // This was causing issues with the analysis flow
+  // useEffect(() => {
+  //   if (selectedFile) {
+  //     setAnalyzedFiles((prev) => {
+  //       const newSet = new Set(prev);
+  //       newSet.clear();
+  //       return newSet;
+  //     });
+  //   }
+  // }, [selectedFile]);
 
   const handleMarkCompleted = (segmentIndex: number) => {
     dispatch(markSegmentCompleted(segmentIndex));
@@ -575,23 +736,37 @@ export default function PracticeMode() {
         onError={(e) => console.error(`[v0] Audio error:`, e)}
       />
 
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1 sticky top-6 h-fit">
-            <AudioControls audioRef={audioRef as any} />
-          </div>
+      <div className="container mx-auto py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
+          <div className="lg:col-span-4 space-y-8">
+            {/* Audio controls */}
 
-          <div className="lg:col-span-3">
-            <div className="mb-4">
-              <WaveformVisualization ref={waveformRef} />
-            </div>
+            {/* Waves */}
+            {/* <WaveformVisualization ref={waveformRef} /> */}
+
+            {/* Segments */}
             <SegmentList
               formatTime={formatTime}
               onPlaySegment={playSegment}
               onStopSegment={stopAllAudio}
               onMarkCompleted={handleMarkCompleted}
+              audioRef={audioRef as any}
             />
           </div>
+
+          <div className="lg:col-span-4 sticky top-4 h-fit">
+            <PdfPageViewer
+              pdfPath="/pdfs/cambridge-advanced-vocab-in-use.pdf"
+              onlyPreview={true}
+              autoExtract={true}
+              allowFileUpload={false}
+              pageNumbers={getExplanationPageNumber()}
+            />
+          </div>
+        </div>
+
+        <div className="bg-gray-100 uppercase rounded-lg h-96 flex-center mt-8">
+          Questions soon
         </div>
       </div>
     </div>

@@ -73,6 +73,25 @@ const practiceSlice = createSlice({
         state.sessionStats.currentStreak += 1
       }
     },
+    toggleSegmentCompleted: (state, action: PayloadAction<number>) => {
+      const segmentIndex = action.payload
+      const session = state.currentSession.find((s) => s.segmentIndex === segmentIndex)
+      if (session) {
+        if (session.completed) {
+          // Mark as incomplete
+          session.completed = false
+          session.timeSpent = 0
+          state.sessionStats.completedSegments = Math.max(0, state.sessionStats.completedSegments - 1)
+          state.sessionStats.currentStreak = 0
+        } else {
+          // Mark as completed
+          session.completed = true
+          session.timeSpent = Date.now()
+          state.sessionStats.completedSegments += 1
+          state.sessionStats.currentStreak += 1
+        }
+      }
+    },
     updateSessionStats: (state, action: PayloadAction<Partial<PracticeState["sessionStats"]>>) => {
       state.sessionStats = { ...state.sessionStats, ...action.payload }
     },
@@ -85,6 +104,7 @@ const practiceSlice = createSlice({
         currentStreak: 0,
       }
     },
+    
   },
 })
 
@@ -95,6 +115,7 @@ export const {
   setShowTranscript,
   incrementAttempts,
   markSegmentCompleted,
+  toggleSegmentCompleted,
   updateSessionStats,
   resetPracticeSession,
 } = practiceSlice.actions
