@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
   CardContent,
@@ -315,7 +316,9 @@ export default function PdfPageViewer({
     }
   };
 
-  return (
+  return !extractedPdfUrl ? (
+    <PdfCardSkeleton />
+  ) : (
     <div className="w-full space-y-6">
       {!onlyPreview && (
         <Card>
@@ -512,3 +515,102 @@ export default function PdfPageViewer({
     </div>
   );
 }
+
+// Add these skeleton components after the PDF_VIEWER_OPTIONS constant
+const PdfCardSkeleton = () => (
+  <Card>
+    <CardHeader>
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-5 w-5 rounded" />
+        <Skeleton className="h-6 w-48" />
+      </div>
+      <Skeleton className="h-4 w-80" />
+    </CardHeader>
+    <CardContent className="space-y-6">
+      {/* Tabs skeleton */}
+      <div className="space-y-4">
+        <div className="grid w-full grid-cols-2 gap-2">
+          <Skeleton className="h-10 w-full rounded-md" />
+          <Skeleton className="h-10 w-full rounded-md" />
+        </div>
+
+        {/* File input skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-10 flex-1 rounded-md" />
+            <Skeleton className="h-4 w-4" />
+          </div>
+        </div>
+      </div>
+
+      {/* Page numbers input skeleton */}
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-10 w-full rounded-md" />
+        <Skeleton className="h-3 w-96" />
+      </div>
+
+      {/* Extract button skeleton */}
+      <Skeleton className="h-10 w-full rounded-md" />
+
+      {/* Usage examples skeleton */}
+      <div className="bg-muted p-4 rounded-lg space-y-3">
+        <Skeleton className="h-5 w-48" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-4 w-72" />
+          <Skeleton className="h-4 w-56" />
+          <Skeleton className="h-4 w-80" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const PdfViewerSkeleton = () => (
+  <Card>
+    <CardHeader className="hidden">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-5 w-5 rounded" />
+        <Skeleton className="h-6 w-36" />
+      </div>
+      <Skeleton className="h-4 w-48" />
+    </CardHeader>
+    <CardContent>
+      <div className="w-full h-[600px] border rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-pulse">
+            <div className="mx-auto h-16 w-16 rounded-lg bg-muted-foreground/20 flex items-center justify-center">
+              <FileText className="h-8 w-8 text-muted-foreground/40" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32 mx-auto" />
+            <Skeleton className="h-3 w-48 mx-auto" />
+          </div>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const LoadingStatusSkeleton = () => (
+  <div className="bg-muted border rounded-lg p-4">
+    <div className="flex items-center gap-2">
+      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+      <Skeleton className="h-4 w-32" />
+    </div>
+    <Skeleton className="h-3 w-48 mt-2" />
+  </div>
+);
+
+const SuccessStatusSkeleton = () => (
+  <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+    <div className="flex items-center gap-2">
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 w-40" />
+    </div>
+    <Skeleton className="h-3 w-56 mt-2" />
+  </div>
+);

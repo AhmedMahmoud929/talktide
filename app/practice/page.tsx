@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import {
@@ -28,11 +28,9 @@ import {
 } from "@/components/practice/WaveformVisualization";
 import dynamic from "next/dynamic";
 import PdfPageViewer from "@/components/practice/PdfPageViewer";
-// import PdfViewer from "@/components/practice/PdfPageViewer";
-
-const PdfViewer = dynamic(() => import("@/components/practice/PdfPageViewer"), {
-  ssr: false,
-});
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function PracticeMode() {
   const searchParams = useSearchParams();
@@ -85,15 +83,24 @@ export default function PracticeMode() {
     }
   }, [audioSegments, dispatch]);
 
-  const getExplanationPageNumber = () => {
+  const getCurrentBook = useCallback(
+    () => audioBooks.find((book) => book.id === selectedBook),
+    [audioBooks, selectedBook]
+  );
+
+  const explanationPageNumber = useMemo(() => {
     const bookPadding = getCurrentBook()?.paddingPreUnits || 0;
     const unitNumber = Number(selectedFile.split(".")[0].split("_")[1]);
     const pageNumber = bookPadding + unitNumber + (unitNumber - 1);
     return String(pageNumber);
-  };
+  }, [getCurrentBook, selectedFile]);
 
-  const getCurrentBook = () =>
-    audioBooks.find((book) => book.id === selectedBook);
+  const questionsPageNumber = useMemo(() => {
+    const bookPadding = getCurrentBook()?.paddingPreUnits || 0;
+    const unitNumber = Number(selectedFile.split(".")[0].split("_")[1]);
+    const pageNumber = bookPadding + unitNumber + (unitNumber - 1) + 1; // One page after explanation
+    return String(pageNumber);
+  }, [getCurrentBook, selectedFile]);
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -738,7 +745,7 @@ export default function PracticeMode() {
 
       <div className="container mx-auto py-6">
         <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
-          <div className="lg:col-span-4 space-y-8">
+          <div className="lg:col-span-4 space-y-8 ">
             {/* Audio controls */}
 
             {/* Waves */}
@@ -754,19 +761,34 @@ export default function PracticeMode() {
             />
           </div>
 
-          <div className="lg:col-span-4 sticky top-4 h-fit">
-            <PdfPageViewer
-              pdfPath="/pdfs/cambridge-advanced-vocab-in-use.pdf"
-              onlyPreview={true}
-              autoExtract={true}
-              allowFileUpload={false}
-              pageNumbers={getExplanationPageNumber()}
-            />
-          </div>
-        </div>
+          <Tabs
+            className="lg:col-span-4 sticky top-6 h-fit"
+            defaultValue="explanation"
+          >
+            <TabsList className="w-full border shadow-2xs bg-white p-1 h-12">
+              <TabsTrigger value="explanation">Explanation</TabsTrigger>
+              <TabsTrigger value="questions">Questions</TabsTrigger>
+            </TabsList>
 
-        <div className="bg-gray-100 uppercase rounded-lg h-96 flex-center mt-8">
-          Questions soon
+            <TabsContent value="explanation">
+              <PdfPageViewer
+                pdfPath="/pdfs/cambridge-advanced-vocab-in-use.pdf"
+                onlyPreview={true}
+                autoExtract={true}
+                allowFileUpload={false}
+                pageNumbers={explanationPageNumber}
+              />
+            </TabsContent>
+            <TabsContent value="questions">
+              <PdfPageViewer
+                pdfPath="/pdfs/cambridge-advanced-vocab-in-use.pdf"
+                onlyPreview={true}
+                autoExtract={true}
+                allowFileUpload={false}
+                pageNumbers={questionsPageNumber}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

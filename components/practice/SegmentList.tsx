@@ -13,8 +13,10 @@ import {
 import { SegmentControls } from "./SegmentControls";
 import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Skeleton } from "../ui/skeleton";
 import { AudioControls } from "./AudioControls";
 import { Check } from "lucide-react";
+import { Card } from "../ui/card";
 
 interface SegmentListProps {
   className?: string;
@@ -87,16 +89,50 @@ export function SegmentList({
 
   if (isAnalyzing) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Analyzing audio...</p>
+      <div className="bg-white rounded-lg border border-gray-200">
+        {/* Header skeleton */}
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-9 w-20" />
+        </div>
+
+        {/* Segment items skeleton */}
+        <div>
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div
+              key={index}
+              className="p-4 border-b border-gray-100 last:border-b-0"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  {/* Checkbox skeleton */}
+                  <Skeleton className="w-5 h-5 rounded" />
+
+                  <div className="flex-1">
+                    {/* Segment title skeleton */}
+                    <div className="flex items-center gap-2 mb-1">
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                    {/* Time range skeleton */}
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+
+                {/* Controls skeleton */}
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-8 w-8 rounded" />
+                  <Skeleton className="h-8 w-8 rounded" />
+                  <Skeleton className="h-8 w-16 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
-  if (audioSegments.length === 0) {
+  if (!isAnalyzing && audioSegments.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <p className="text-gray-500 text-center">
@@ -107,7 +143,7 @@ export function SegmentList({
   }
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 ${className}`}>
+    <Card className={`rounded-xl p-0 gap-0 ${className}`}>
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <h2 className="font-medium text-gray-800">
           Audio Segments ({audioSegments.length})
@@ -214,6 +250,6 @@ export function SegmentList({
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }

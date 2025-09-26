@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/redux/hooks";
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
 import { ArrowLeftIcon, Undo2 } from "lucide-react";
+import { Skeleton } from "../ui/skeleton";
 
 interface PracticeHeaderProps {
   className?: string;
@@ -18,7 +19,7 @@ export function PracticeHeader({ className }: PracticeHeaderProps) {
   const { currentSession } = useAppSelector((state) => state.practice);
 
   const currentBook = audioBooks.find((book) => book.id === selectedBook);
-  const bookTitle = currentBook?.title || "No Book Selected";
+  const bookTitle = currentBook?.title;
   const fileId = selectedFile || "No File Selected";
 
   const progress =
@@ -52,7 +53,13 @@ export function PracticeHeader({ className }: PracticeHeaderProps) {
             {/* ← Back */}
           </Button>
           <div>
-            <h1 className="text-lg font-semibold text-gray-800">{bookTitle}</h1>
+            {bookTitle ? (
+              <h1 className="text-lg font-semibold text-gray-800">
+                {bookTitle}
+              </h1>
+            ) : (
+              <Skeleton className="h-8 w-56" />
+            )}
             {/* <p className="text-sm text-gray-600">File: {fileId}</p> */}
           </div>
         </div>
