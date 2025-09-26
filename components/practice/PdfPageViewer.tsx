@@ -278,7 +278,7 @@ export default function PdfPageViewer({
       const pdfBytes = await newPdf.save();
 
       // Create blob URL for display
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const blob = new Blob([pdfBytes] as any, { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
 
       const baseName =
