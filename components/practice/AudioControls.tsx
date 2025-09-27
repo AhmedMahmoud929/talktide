@@ -31,11 +31,11 @@ export function AudioControls({
   const playContinuously = playMode === "continue";
 
   // Update audio playback rate when speed changes
-  useEffect(() => {
-    if (audioRef?.current) {
-      audioRef.current.playbackRate = playbackSpeed;
-    }
-  }, [playbackSpeed, audioRef]);
+  // useEffect(() => {
+  //   if (audioRef?.current) {
+  //     audioRef.current.playbackRate = playbackSpeed;
+  //   }
+  // }, [playbackSpeed, audioRef]);
 
   const handlePlay = () => {
     if (audioRef?.current) {
@@ -90,7 +90,7 @@ export function AudioControls({
       {/* Settings */}
       <div className="space-y-4">
         {/* Speed */}
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Speed: {playbackSpeed.toFixed(2)}x
           </label>
@@ -102,10 +102,10 @@ export function AudioControls({
             step={0.05}
             className="w-full"
           />
-        </div>
+        </div> */}
 
         {/* Loops */}
-        <div className="relative">
+        {/* <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Loops: {loopCount}
           </label>
@@ -122,7 +122,7 @@ export function AudioControls({
             step={1}
             className="w-full"
           />
-        </div>
+        </div> */}
 
         {/* Continuous Play */}
         <div className="flex items-center justify-between pt-4">

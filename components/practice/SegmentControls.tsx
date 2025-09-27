@@ -80,7 +80,7 @@ export function SegmentControls({
 
         {/* Advanced Controls Toggle */}
         <Popover>
-          <PopoverTrigger>
+          <PopoverTrigger className="hidden">
             <Button
               size="icon"
               variant="outline"

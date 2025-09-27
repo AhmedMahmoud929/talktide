@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { AudioControls } from "./AudioControls";
-import { Check } from "lucide-react";
+import { Check, Settings2 } from "lucide-react";
 import { Card } from "../ui/card";
 
 interface SegmentListProps {
@@ -149,14 +149,16 @@ export function SegmentList({
           Audio Segments ({audioSegments.length})
         </h2>
 
-        <Dialog>
+        {/* <Dialog>
           <DialogTrigger>
-            <Button variant={"outline"}>Customize</Button>
+            <Button variant={"outline"}>
+              <Settings2 />
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <AudioControls audioRef={audioRef as any} />
           </DialogContent>
-        </Dialog>
+        </Dialog> */}
       </div>
 
       <div>
